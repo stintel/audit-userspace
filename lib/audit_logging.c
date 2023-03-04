@@ -432,6 +432,35 @@ int audit_log_acct_message(int audit_fd, int type, const char *pgname,
 	const char *op, const char *name, unsigned int id, 
 	const char *host, const char *addr, const char *tty, int result)
 {
+	return audit_log_acct_message_local(audit_fd, type, pgname, op, name,
+			id, NULL, host, addr, tty, result);
+}
+
+/*
+ * This function will log a message to the audit system using a predefined
+ * message format. It should be used for all account manipulation operations.
+ * Parameter usage is as follows:
+ *
+ * audit_fd - The fd returned by audit_open
+ * type - type of message: AUDIT_USER_CHAUTHTOK for changing any account
+ *        attributes.
+ * pgname - program's name
+ * op  -  operation. "adding user", "changing finger info", "deleting group"
+ * name - user's account or group name. If not available use NULL.
+ * id  -  uid or gid that the operation is being performed on. This is used
+ *        only when user is NULL.
+ * local - The local IP if known
+ * host - The hostname if known
+ * addr - The network address of the user
+ * tty  - The tty of the user
+ * result - 1 is "success" and 0 is "failed"
+ *
+ * It returns the sequence number which is > 0 on success or <= 0 on error.
+ */
+int audit_log_acct_message_local(int audit_fd, int type, const char *pgname,
+	const char *op, const char *name, unsigned int id, const char *local,
+	const char *host, const char *addr, const char *tty, int result)
+{
 	const char *success;
 	char buf[MAX_AUDIT_MESSAGE_LENGTH];
 	char addrbuf[INET6_ADDRSTRLEN];
@@ -488,14 +517,15 @@ int audit_log_acct_message(int audit_fd, int type, const char *pgname,
 		user[len] = 0;
 		if (audit_value_needs_encoding(name, len)) {
 			audit_encode_value(user, name, len);
-			format = 
-	     "op=%s acct=%s exe=%s hostname=%s addr=%s terminal=%s res=%s";
+			format =
+				"op=%s acct=%s exe=%s local=%s hostname=%s addr=%s terminal=%s res=%s";
 		} else
-			format = 
-	 "op=%s acct=\"%s\" exe=%s hostname=%s addr=%s terminal=%s res=%s";
+			format =
+				"op=%s acct=\"%s\" exe=%s local=%s hostname=%s addr=%s terminal=%s res=%s";
 
 		snprintf(buf, sizeof(buf), format,
 			op, user, exename,
+			local ? local : "?",
 			host ? host : "?",
 			addrbuf,
 			tty ? tty : "?",
@@ -503,8 +533,9 @@ int audit_log_acct_message(int audit_fd, int type, const char *pgname,
 			);
 	} else
 		snprintf(buf, sizeof(buf),
-		"op=%s id=%u exe=%s hostname=%s addr=%s terminal=%s res=%s",
+		"op=%s id=%u exe=%s local=%s hostname=%s addr=%s terminal=%s res=%s",
 			op, id, exename,
+			local ? local : "?",
 			host ? host : "?",
 			addrbuf,
 			tty ? tty : "?",
