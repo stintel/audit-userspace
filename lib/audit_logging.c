@@ -421,6 +421,7 @@ int audit_log_user_comm_message(int audit_fd, int type, const char *message,
  * name - user's account or group name. If not available use NULL.
  * id  -  uid or gid that the operation is being performed on. This is used
  *        only when user is NULL.
+ * local - The local IP address if known
  * host - The hostname if known
  * addr - The network address of the user
  * tty  - The tty of the user
@@ -429,7 +430,7 @@ int audit_log_user_comm_message(int audit_fd, int type, const char *message,
  * It returns the sequence number which is > 0 on success or <= 0 on error.
  */
 int audit_log_acct_message(int audit_fd, int type, const char *pgname,
-	const char *op, const char *name, unsigned int id, 
+	const char *op, const char *name, unsigned int id, const char *local,
 	const char *host, const char *addr, const char *tty, int result)
 {
 	const char *success;
@@ -488,14 +489,15 @@ int audit_log_acct_message(int audit_fd, int type, const char *pgname,
 		user[len] = 0;
 		if (audit_value_needs_encoding(name, len)) {
 			audit_encode_value(user, name, len);
-			format = 
-	     "op=%s acct=%s exe=%s hostname=%s addr=%s terminal=%s res=%s";
+			format =
+				"op=%s acct=%s exe=%s local=%s hostname=%s addr=%s terminal=%s res=%s";
 		} else
-			format = 
-	 "op=%s acct=\"%s\" exe=%s hostname=%s addr=%s terminal=%s res=%s";
+			format =
+				"op=%s acct=\"%s\" exe=%s local=%s hostname=%s addr=%s terminal=%s res=%s";
 
 		snprintf(buf, sizeof(buf), format,
 			op, user, exename,
+			local ? local : "?",
 			host ? host : "?",
 			addrbuf,
 			tty ? tty : "?",
@@ -503,8 +505,9 @@ int audit_log_acct_message(int audit_fd, int type, const char *pgname,
 			);
 	} else
 		snprintf(buf, sizeof(buf),
-		"op=%s id=%u exe=%s hostname=%s addr=%s terminal=%s res=%s",
+		"op=%s id=%u exe=%s local=%s hostname=%s addr=%s terminal=%s res=%s",
 			op, id, exename,
+			local ? local : "?",
 			host ? host : "?",
 			addrbuf,
 			tty ? tty : "?",
